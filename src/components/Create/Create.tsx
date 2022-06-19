@@ -68,11 +68,7 @@ const Create: React.FC = () => {
       return
     }
 
-    flushSync(() => {
-      setAnswersAmount(answersAmount + 1)
-    })
-
-    setFocus(`answers.${index + 1}`)
+    modifyAnswersFields("add")
   }
 
   const handleBackspace = (index: number) => {
@@ -86,11 +82,18 @@ const Create: React.FC = () => {
       return
     }
 
-    flushSync(() => {
-      setAnswersAmount(answersAmount - 1)
-    })
+    modifyAnswersFields("remove")
+  }
 
-    setFocus(`answers.${index - 1}`)
+  const modifyAnswersFields = (action: "remove" | "add") => {
+    const modifiedFieldsAmount =
+      action == "add" ? answersAmount + 1 : answersAmount - 1
+
+    flushSync(() => setAnswersAmount(modifiedFieldsAmount))
+
+    const indexToFocus = action == "add" ? answersAmount : answersAmount - 2
+
+    setFocus(`answers.${indexToFocus}`)
   }
 
   if (status == "loading") {
@@ -121,7 +124,7 @@ const Create: React.FC = () => {
           )}
         </Block>
         <Block>
-          <Label>Answers</Label>
+          <Label htmlFor="answers.0">Answers</Label>
           {Array.from({ length: answersAmount }).map((_, index) => (
             <Input
               key={index}
