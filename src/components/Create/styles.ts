@@ -6,6 +6,14 @@ export const Container = styled.main`
   padding: 10vh 0;
 `
 
+export const LoadingContainer = styled.div`
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`
+
 export const Form = styled.form`
   max-width: 900px;
   width: 100%;

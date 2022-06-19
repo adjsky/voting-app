@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from "react"
+import { flushSync } from "react-dom"
 import { useForm } from "react-hook-form"
-import { trpc } from "@/utils/trpc"
 import { useRouter } from "next/router"
+import { useSession, signIn } from "next-auth/react"
 
+import { trpc } from "@/utils/trpc"
+
+import Loader from "@/shared/Loader"
 import {
   Container,
+  LoadingContainer,
   Title,
   Form,
   Block,
@@ -20,7 +25,14 @@ type FormData = {
 }
 
 const Create: React.FC = () => {
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      signIn("google")
+    }
+  })
   const router = useRouter()
+
   const {
     register,
     handleSubmit,
@@ -33,16 +45,12 @@ const Create: React.FC = () => {
   const createQuestion = trpc.useMutation("create-question")
 
   useEffect(() => {
-    if (answersAmount == 2) {
+    if (status == "loading") {
       return
     }
 
-    setFocus(`answers.${answersAmount - 1}`)
-  }, [answersAmount, setFocus])
-
-  useEffect(() => {
     setFocus("question")
-  }, [setFocus])
+  }, [setFocus, status])
 
   const onSubmit = handleSubmit(async ({ question, answers }) => {
     const response = await createQuestion.mutateAsync({
@@ -52,6 +60,46 @@ const Create: React.FC = () => {
 
     router.push(`/${response.id}`)
   })
+
+  const handleEnter = (index: number) => {
+    if (index != answersAmount - 1) {
+      setFocus(`answers.${index + 1}`)
+
+      return
+    }
+
+    flushSync(() => {
+      setAnswersAmount(answersAmount + 1)
+    })
+
+    setFocus(`answers.${index + 1}`)
+  }
+
+  const handleBackspace = (index: number) => {
+    if (index < 1) {
+      return
+    }
+
+    if (index == 1) {
+      setFocus("answers.0")
+
+      return
+    }
+
+    flushSync(() => {
+      setAnswersAmount(answersAmount - 1)
+    })
+
+    setFocus(`answers.${index - 1}`)
+  }
+
+  if (status == "loading") {
+    return (
+      <LoadingContainer>
+        <Loader />
+      </LoadingContainer>
+    )
+  }
 
   return (
     <Container>
@@ -82,11 +130,7 @@ const Create: React.FC = () => {
                 if (event.code == "Enter") {
                   event.preventDefault()
 
-                  if (index == answersAmount - 1) {
-                    setAnswersAmount((prev) => prev + 1)
-                  } else {
-                    setFocus(`answers.${index + 1}`)
-                  }
+                  handleEnter(index)
                 } else if (event.code == "Backspace") {
                   if (event.currentTarget.value != "") {
                     return
@@ -94,12 +138,7 @@ const Create: React.FC = () => {
 
                   event.preventDefault()
 
-                  if (index == 1) {
-                    setFocus("answers.0")
-                  } else if (index > 1) {
-                    setFocus(`answers.${index - 1}`)
-                    setAnswersAmount((prev) => prev - 1)
-                  }
+                  handleBackspace(index)
                 }
               }}
               {...register(`answers.${index}`, { required: true })}

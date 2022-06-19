@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
-import Cookies from "js-cookie"
+import { modifyStorageList } from "@/utils/helpers"
 
-import { addToStorageList } from "./helpers"
-
-export const useVoted = (id: string | null) => {
+const useVoted = (id: string | null) => {
   const [voted, setVoted] = useState<boolean | null>(null)
 
   const check = useCallback(() => {
@@ -34,10 +32,13 @@ export const useVoted = (id: string | null) => {
     }
   }, [id])
 
-  const markVoted = useCallback(() => {
-    addToStorageList("voted", id)
-    setVoted(true)
-  }, [id])
+  const markVoted = useCallback(
+    (condition: boolean) => {
+      modifyStorageList("voted", id, condition ? "add" : "remove")
+      setVoted(condition)
+    },
+    [id]
+  )
 
   useEffect(() => {
     check()
@@ -48,26 +49,4 @@ export const useVoted = (id: string | null) => {
   return { voted, markVoted }
 }
 
-export const useAuthor = (creatorToken: string | null) => {
-  const [author, setAuthor] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const callback = setAuthor(null)
-
-    if (creatorToken == null) {
-      return callback
-    }
-
-    const token = Cookies.get("token")
-
-    if (!token) {
-      return callback
-    }
-
-    setAuthor(token == creatorToken)
-
-    return callback
-  }, [creatorToken])
-
-  return { author }
-}
+export default useVoted

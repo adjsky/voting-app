@@ -3,8 +3,7 @@ import * as trpcNext from "@trpc/server/adapters/next"
 
 export function createContext(opts?: trpcNext.CreateNextContextOptions) {
   return {
-    req: opts?.req,
-    token: opts?.req.cookies["token"]
+    req: opts?.req
   }
 }
 

@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
+import { getSession } from "next-auth/react"
 
 import { prisma } from "@/db/client"
 import { createRouter } from "../context"
@@ -25,14 +26,16 @@ const router = createRouter()
       question: z.string(),
       answers: z.array(z.string())
     }),
-    resolve({ input: { question, answers }, ctx: { token } }) {
-      if (!token) {
+    async resolve({ input: { question, answers }, ctx: { req } }) {
+      const session = await getSession({ req })
+
+      if (!session) {
         throw new TRPCError({ code: "UNAUTHORIZED" })
       }
 
       return prisma.question.create({
         data: {
-          creator: token,
+          creator: session.user.email,
           question,
           answers: {
             createMany: {
@@ -47,11 +50,7 @@ const router = createRouter()
   })
   .mutation("make-vote", {
     input: z.number().int(),
-    resolve({ input, ctx: { token } }) {
-      if (!token) {
-        throw new TRPCError({ code: "UNAUTHORIZED" })
-      }
-
+    async resolve({ input }) {
       return prisma.answer.update({
         where: { id: input },
         data: {

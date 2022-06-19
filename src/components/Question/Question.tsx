@@ -1,38 +1,74 @@
 import React from "react"
 import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
 
-import { Container, Title, Vote, Loader } from "./styles"
+import Loader from "@/shared/Loader"
+import { Container, Title, Vote } from "./styles"
 
 import { trpc } from "@/utils/trpc"
-import { useVoted, useAuthor } from "@/utils/hooks"
+import useVoted from "@/hooks/use-voted"
 
 const Question: React.FC = () => {
+  const { data: session, status } = useSession()
   const router = useRouter()
 
   const typedQuestionId =
     typeof router.query.questionId == "string" ? router.query.questionId : null
 
-  const vote = trpc.useMutation(["make-vote"])
+  const queryClient = trpc.useContext()
+  const vote = trpc.useMutation(["make-vote"], {
+    onMutate: async (id: number) => {
+      const previousQuestion = queryClient.getQueryData([
+        "get-question",
+        typedQuestionId || ""
+      ])
+
+      if (previousQuestion == undefined) {
+        return
+      }
+
+      await queryClient.cancelQuery(["get-question", typedQuestionId || ""])
+
+      queryClient.setQueryData(["get-question", typedQuestionId || ""], {
+        ...previousQuestion,
+        answers: previousQuestion.answers.map((answer) => {
+          if (answer.id != id) {
+            return { ...answer }
+          }
+
+          return { ...answer, votes: answer.votes + 1 }
+        })
+      })
+
+      markVoted(true)
+
+      return { previousQuestion }
+    },
+    onError: (err, vars, ctx) => {
+      if (!ctx?.previousQuestion) {
+        return
+      }
+
+      queryClient.setQueryData(
+        ["get-question", typedQuestionId || ""],
+        ctx.previousQuestion
+      )
+      markVoted(false)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(["get-question", typedQuestionId || ""])
+    }
+  })
   const question = trpc.useQuery(["get-question", typedQuestionId || ""], {
     enabled: typedQuestionId != null
   })
   const { voted, markVoted } = useVoted(typedQuestionId)
-  const { author } = useAuthor(question.data ? question.data.creator : null)
-
-  const canVote = voted == false && author == false
-
-  const onVote = async (id: number) => {
-    await vote.mutateAsync(id)
-    await question.refetch()
-
-    markVoted()
-  }
 
   if (
     question.isIdle ||
     question.isLoading ||
     voted == null ||
-    author == null
+    status == "loading"
   ) {
     return (
       <Container>
@@ -45,6 +81,11 @@ const Question: React.FC = () => {
     return <Container>Error</Container>
   }
 
+  const canVote =
+    session == null
+      ? voted == false
+      : session.user.email != question.data?.creator
+
   return (
     <Container>
       <Title>{question.data.question}</Title>
@@ -53,7 +94,7 @@ const Question: React.FC = () => {
           <span>
             {answer.answer} - {answer.votes}
           </span>{" "}
-          {canVote && <Vote onClick={() => onVote(answer.id)}>vote</Vote>}
+          {canVote && <Vote onClick={() => vote.mutate(answer.id)}>vote</Vote>}
         </p>
       ))}
     </Container>

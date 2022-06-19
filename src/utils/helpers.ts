@@ -1,4 +1,8 @@
-export const addToStorageList = <T>(key: string, item: T): boolean => {
+export const modifyStorageList = <T>(
+  key: string,
+  item: T,
+  action: "remove" | "add"
+): boolean => {
   const storageItem = localStorage.getItem(key)
 
   try {
@@ -14,7 +18,14 @@ export const addToStorageList = <T>(key: string, item: T): boolean => {
       return false
     }
 
-    localStorage.setItem(key, JSON.stringify([...parsedStorageitem, item]))
+    localStorage.setItem(
+      key,
+      JSON.stringify(
+        action == "add"
+          ? [...parsedStorageitem, item]
+          : parsedStorageitem.filter((parsedItem) => item != parsedItem)
+      )
+    )
 
     return true
   } catch (_) {
