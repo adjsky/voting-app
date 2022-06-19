@@ -84,7 +84,7 @@ const Question: React.FC = () => {
   const canVote =
     session == null
       ? voted == false
-      : session.user.email != question.data?.creator
+      : session.user.email != question.data.creator
 
   return (
     <Container>
